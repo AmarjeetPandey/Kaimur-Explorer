@@ -69,6 +69,17 @@ def _send_email(subject, recipients, html_body):
     if len(MAIL_PASSWORD) != 16 or " " in MAIL_PASSWORD:
         print("[SMTP] WARNING: Gmail App Password must be 16 characters and contain no spaces.")
         print("[SMTP] Current MAIL_PASSWORD looks invalid. Update backend/.env with a valid App Password.")
+    import socket
+
+    print("MAIL_SERVER =", MAIL_SERVER)
+    print("MAIL_PORT =", MAIL_PORT)
+    
+    try:
+        print("Resolved IP:", socket.gethostbyname(MAIL_SERVER))
+    except Exception as e:
+        print("DNS Error:", e)
+
+
 
     try:
         with smtplib.SMTP(MAIL_SERVER, MAIL_PORT, timeout=20) as smtp:
