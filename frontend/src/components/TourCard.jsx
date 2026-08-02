@@ -4,7 +4,7 @@ import { motion } from 'framer-motion'
 function TourCard({ tour }) {
   const normalizeMediaUrl = (url) => {
     if (!url) return url
-    return url.startsWith('http') ? url : `http://localhost:8000${url}`
+    return url.startsWith('http') ? url : `https://kaimur-explorer.onrender.com${url}`
   }
 
   const primaryMedia = tour.front_media_url || tour.image_urls?.[0] || tour.video_urls?.[0] || null

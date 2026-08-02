@@ -13,7 +13,7 @@ function TourDetail() {
 
   const normalizeMediaUrl = (url) => {
     if (!url) return url
-    return url.startsWith('http') ? url : `http://localhost:8000${url}`
+    return url.startsWith('http') ? url : `https://kaimur-explorer.onrender.com${url}`
   }
 
   const media = [
