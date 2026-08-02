@@ -9,7 +9,7 @@ import json
 import time
 
 def test_otp_flow():
-    base_url = 'https://kaimur-explorer.onrender.com'
+    base_url = 'http://127.0.0.1:8000'
 
     print("🔐 Kaimur Explorer OTP Login Test")
     print("=" * 50)
