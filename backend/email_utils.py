@@ -1,8 +1,8 @@
-import json
 import os
 import pathlib
-from urllib import error as urllib_error
-from urllib import request as urllib_request
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 from dotenv import load_dotenv
 from jinja2 import Template
@@ -10,9 +10,12 @@ from jinja2 import Template
 env_path = pathlib.Path(__file__).resolve().parent / ".env"
 load_dotenv(env_path)
 
-RESEND_API_KEY = os.getenv("RESEND_API_KEY", "").strip()
-RESEND_FROM_EMAIL = os.getenv("RESEND_FROM_EMAIL", "").strip() or os.getenv("MAIL_DEFAULT_SENDER", "").strip() or "Kaimur Explorer <onboarding@resend.dev>"
-ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "admin@kaimurexplorer.com")
+MAIL_SERVER = os.getenv("MAIL_SERVER", "smtp.gmail.com")
+MAIL_PORT = int(os.getenv("MAIL_PORT", 587))
+MAIL_USERNAME = os.getenv("MAIL_USERNAME", "")
+MAIL_PASSWORD = os.getenv("MAIL_PASSWORD", "")
+MAIL_DEFAULT_SENDER = os.getenv("MAIL_DEFAULT_SENDER", f"Kaimur Explorer <{MAIL_USERNAME}>")
+ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", MAIL_USERNAME)
 
 BOOKING_EMAIL_TEMPLATE = Template("""
 <h2>New Booking Confirmed</h2>
@@ -52,39 +55,36 @@ OTP_EMAIL_TEMPLATE = Template("""
 
 
 def _send_email(subject, recipients, html_body):
-    if not RESEND_API_KEY:
-        print("[Resend] RESEND_API_KEY is not configured. Set it in backend/.env.")
-        return False
+    if not MAIL_USERNAME or not MAIL_PASSWORD:
+        raise RuntimeError("Mail credentials are not configured. Set MAIL_USERNAME and MAIL_PASSWORD in backend/.env.")
 
     if isinstance(recipients, str):
         recipients = [recipients]
 
-    payload = {
-        "from": RESEND_FROM_EMAIL,
-        "to": recipients,
-        "subject": subject,
-        "html": html_body,
-    }
+    message = MIMEMultipart("alternative")
+    message["From"] = MAIL_DEFAULT_SENDER
+    message["To"] = ", ".join(recipients)
+    message["Subject"] = subject
+    message.attach(MIMEText(html_body, "html"))
+
+    if len(MAIL_PASSWORD) != 16 or " " in MAIL_PASSWORD:
+        print("[SMTP] WARNING: Gmail App Password must be 16 characters and contain no spaces.")
+        print("[SMTP] Current MAIL_PASSWORD looks invalid. Update backend/.env with a valid App Password.")
 
     try:
-        req = urllib_request.Request(
-            "https://api.resend.com/emails",
-            data=json.dumps(payload).encode("utf-8"),
-            headers={
-                "Authorization": f"Bearer {RESEND_API_KEY}",
-                "Content-Type": "application/json",
-            },
-            method="POST",
-        )
-        with urllib_request.urlopen(req, timeout=20) as response:
-            response.read()
+        with smtplib.SMTP(MAIL_SERVER, MAIL_PORT, timeout=20) as smtp:
+            smtp.ehlo()
+            smtp.starttls()
+            smtp.ehlo()
+            smtp.login(MAIL_USERNAME, MAIL_PASSWORD)
+            smtp.sendmail(MAIL_DEFAULT_SENDER, recipients, message.as_string())
         return True
-    except urllib_error.HTTPError as exc:
-        error_body = exc.read().decode("utf-8", errors="ignore")
-        print(f"[Resend] Failed to send email to {recipients}: {exc.code} {error_body}")
+    except smtplib.SMTPAuthenticationError as e:
+        print(f"[SMTP] Authentication failed for {MAIL_USERNAME}: {e}")
+        print("[SMTP] Make sure you are using a Gmail App Password, not your normal Gmail password.")
         return False
-    except Exception as exc:
-        print(f"[Resend] Failed to send email to {recipients}: {exc}")
+    except Exception as e:
+        print(f"[SMTP] Failed to send email to {recipients}: {e}")
         return False
 
 
