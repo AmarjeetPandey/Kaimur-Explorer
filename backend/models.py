@@ -27,6 +27,7 @@ class Tour(Base):
     image_urls = Column(Text, nullable=False)
     video_urls = Column(Text, nullable=True)
     front_media_url = Column(Text, nullable=True)
+    media_items = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     bookings = relationship("Booking", back_populates="tour")
 
