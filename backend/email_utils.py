@@ -75,10 +75,12 @@ def _send_email(subject, recipients, html_body):
     print("MAIL_PORT =", MAIL_PORT)
     
     try:
-        print("Resolved IP:", socket.gethostbyname(MAIL_SERVER))
+        print("Testing SMTP connection...")
+        s = socket.create_connection((MAIL_SERVER, MAIL_PORT), timeout=10)
+        print("SMTP socket connected")
+        s.close()
     except Exception as e:
-        print("DNS Error:", e)
-
+        print("Socket error:", repr(e))
 
 
     try:
