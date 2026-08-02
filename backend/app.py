@@ -18,9 +18,9 @@ import jwt
 import shutil
 import os
 
-from .database import Base, engine, SessionLocal, get_db
-from .models import User, Tour, Booking, OTPToken
-from .email_utils import send_booking_notification, send_status_email, send_otp_email
+from database import Base, engine, SessionLocal, get_db
+from models import User, Tour, Booking, OTPToken
+from email_utils import send_booking_notification, send_status_email, send_otp_email
 
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
