@@ -456,13 +456,14 @@ def create_booking(payload: BookingCreate, db: Session = Depends(get_db)):
         if not tour:
             raise HTTPException(status_code=404, detail="Tour not found")
 
-        user = db.query(User).filter(User.email == payload.email.lower()).first()
+        normalized_email = payload.email.lower()
+        user = db.query(User).filter(User.email == normalized_email).first()
         if not user:
             user = User(
-                email=payload.email.lower(),
+                email=normalized_email,
                 name=payload.name,
                 is_active=True,
-                is_admin=(payload.email.lower() == ADMIN_EMAIL.lower()),
+                is_admin=(normalized_email == ADMIN_EMAIL.lower()),
             )
             db.add(user)
             db.commit()
@@ -474,7 +475,7 @@ def create_booking(payload: BookingCreate, db: Session = Depends(get_db)):
             name=payload.name,
             location=payload.location,
             age=payload.age,
-            email=payload.email.lower(),
+            email=normalized_email,
             phone=payload.phone,
             date_of_booking=payload.date_of_booking,
             status="Pending",
@@ -531,13 +532,20 @@ def list_bookings(current_user: User = Depends(get_current_user), db: Session = 
 @app.get("/api/admin/bookings", response_model=List[BookingOut])
 def admin_list_bookings(admin_user: User = Depends(get_admin_user), db: Session = Depends(get_db)):
     bookings = db.query(Booking).order_by(Booking.created_at.desc()).all()
+    result = []
     for booking in bookings:
-        image_urls = [url for url in json.loads(booking.tour.image_urls) if url]
-        video_urls = [url for url in json.loads(booking.tour.video_urls) if url] if booking.tour.video_urls else []
-        booking.tour.image_urls = image_urls
-        booking.tour.video_urls = video_urls
-        booking.tour.media = build_media_list(image_urls, video_urls, json.loads(booking.tour.media_items) if booking.tour.media_items else None)
-    return bookings
+        tour = db.query(Tour).filter(Tour.id == booking.tour_id).first()
+        if not tour:
+            continue
+        booking.tour = tour
+        image_urls = [url for url in json.loads(tour.image_urls) if url]
+        video_urls = [url for url in json.loads(tour.video_urls) if url] if tour.video_urls else []
+        tour.image_urls = image_urls
+        tour.video_urls = video_urls
+        if hasattr(tour, 'media'):
+            tour.media = build_media_list(image_urls, video_urls, json.loads(tour.media_items) if tour.media_items else None)
+        result.append(booking)
+    return result
 
 
 @app.put("/api/admin/bookings/{booking_id}")
