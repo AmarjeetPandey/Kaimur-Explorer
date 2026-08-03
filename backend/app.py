@@ -1,6 +1,5 @@
 import os
 import json
-import random
 import re
 from datetime import datetime, timedelta
 from typing import List, Optional
@@ -20,11 +19,11 @@ import os
 
 from database import Base, engine, SessionLocal, get_db
 from models import User, Tour, Booking, OTPToken
-from email_utils import send_booking_notification, send_status_email, send_otp_email
 
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
 ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "admin@kaimurexplorer.com")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "Admin@123")
 SITE_URL = os.getenv("SITE_URL", "http://localhost:5175")
 API_URL = os.getenv("API_URL", "http://localhost:8000")
 SECRET_KEY = os.getenv("JWT_SECRET_KEY", "supersecretjwtkey")
@@ -52,12 +51,14 @@ os.makedirs(VIDEOS_DIR, exist_ok=True)
 # Mount static files
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
-class SendOTPRequest(BaseModel):
+class SignupRequest(BaseModel):
     email: EmailStr
+    password: str = Field(..., min_length=6)
+    name: Optional[str] = None
 
-class VerifyOTPRequest(BaseModel):
+class LoginRequest(BaseModel):
     email: EmailStr
-    otp: str = Field(..., min_length=6, max_length=6)
+    password: str = Field(..., min_length=6)
 
 class UserOut(BaseModel):
     id: int
@@ -161,16 +162,22 @@ def startup_event():
     ensure_front_media_column()
     db = SessionLocal()
     try:
-        admin = db.query(User).filter(User.email == ADMIN_EMAIL).first()
+        admin = db.query(User).filter(User.email == ADMIN_EMAIL.lower()).first()
         if not admin:
             admin = User(
-                email=ADMIN_EMAIL,
+                email=ADMIN_EMAIL.lower(),
                 name="Kaimur Admin",
-                password_hash=generate_password_hash("Admin@123"),
+                password_hash=generate_password_hash(ADMIN_PASSWORD),
                 is_admin=True,
                 is_active=True,
             )
             db.add(admin)
+            db.commit()
+        else:
+            admin.email = ADMIN_EMAIL.lower()
+            admin.password_hash = generate_password_hash(ADMIN_PASSWORD)
+            admin.is_admin = True
+            admin.is_active = True
             db.commit()
         if db.query(Tour).count() == 0:
             tours = []
@@ -362,41 +369,36 @@ def startup_event():
         db.close()
 
 
-@app.post("/api/auth/send-otp")
-def send_otp(payload: SendOTPRequest, db: Session = Depends(get_db)):
-    otp_code = f"{random.randint(100000, 999999)}"
-    expiry = datetime.utcnow() + timedelta(minutes=5)
-    otp_hash = generate_password_hash(otp_code)
-    token = OTPToken(email=payload.email, otp_hash=otp_hash, expires_at=expiry)
-    db.add(token)
-    db.commit()
-    try:
-        send_otp_email(payload.email, otp_code)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="Failed to send OTP email")
-    return {"message": "OTP sent to your email address. Please check your inbox."}
+@app.post("/api/auth/signup")
+def signup(payload: SignupRequest, db: Session = Depends(get_db)):
+    normalized_email = payload.email.lower()
+    existing_user = db.query(User).filter(User.email == normalized_email).first()
+    if existing_user:
+        raise HTTPException(status_code=400, detail="User already exists. Please log in instead.")
 
-
-@app.post("/api/auth/verify-otp")
-def verify_otp(payload: VerifyOTPRequest, db: Session = Depends(get_db)):
-    token = (
-        db.query(OTPToken)
-        .filter(OTPToken.email == payload.email, OTPToken.used == False)
-        .order_by(OTPToken.created_at.desc())
-        .first()
+    user = User(
+        email=normalized_email,
+        name=payload.name or normalized_email.split("@")[0].title(),
+        password_hash=generate_password_hash(payload.password),
+        is_active=True,
+        is_admin=(normalized_email == ADMIN_EMAIL.lower()),
     )
-    if not token or token.expires_at < datetime.utcnow():
-        raise HTTPException(status_code=400, detail="OTP expired or invalid")
-    if not check_password_hash(token.otp_hash, payload.otp):
-        raise HTTPException(status_code=400, detail="OTP invalid")
-    token.used = True
-    user = db.query(User).filter(User.email == payload.email).first()
-    if not user:
-        user = User(email=payload.email, name=payload.email.split("@")[0].title(), is_active=True, is_admin=(payload.email.lower() == ADMIN_EMAIL))
-        db.add(user)
-        db.commit()
-        db.refresh(user)
-    access_token = create_access_token(payload.email, user.is_admin)
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    access_token = create_access_token(normalized_email, user.is_admin)
+    return {"access_token": access_token, "user": {"email": user.email, "name": user.name, "is_admin": user.is_admin}}
+
+
+@app.post("/api/auth/login")
+def login(payload: LoginRequest, db: Session = Depends(get_db)):
+    normalized_email = payload.email.lower()
+    user = db.query(User).filter(User.email == normalized_email).first()
+    if not user or not user.password_hash or not check_password_hash(user.password_hash, payload.password):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    access_token = create_access_token(normalized_email, user.is_admin)
     return {"access_token": access_token, "user": {"email": user.email, "name": user.name, "is_admin": user.is_admin}}
 
 
@@ -454,13 +456,13 @@ def create_booking(payload: BookingCreate, db: Session = Depends(get_db)):
         if not tour:
             raise HTTPException(status_code=404, detail="Tour not found")
 
-        user = db.query(User).filter(User.email == payload.email).first()
+        user = db.query(User).filter(User.email == payload.email.lower()).first()
         if not user:
             user = User(
-                email=payload.email,
+                email=payload.email.lower(),
                 name=payload.name,
                 is_active=True,
-                is_admin=(payload.email.lower() == ADMIN_EMAIL),
+                is_admin=(payload.email.lower() == ADMIN_EMAIL.lower()),
             )
             db.add(user)
             db.commit()
@@ -472,48 +474,16 @@ def create_booking(payload: BookingCreate, db: Session = Depends(get_db)):
             name=payload.name,
             location=payload.location,
             age=payload.age,
-            email=payload.email,
+            email=payload.email.lower(),
             phone=payload.phone,
             date_of_booking=payload.date_of_booking,
-            status="Approved",
+            status="Pending",
         )
         db.add(booking)
         db.commit()
         db.refresh(booking)
-        
-        booking_sent = send_booking_notification(
-            ADMIN_EMAIL,
-            {
-                "booking_id": booking.id,
-                "tour_name": tour.name,
-                "name": booking.name,
-                "location": booking.location,
-                "age": booking.age,
-                "email": booking.email,
-                "phone": booking.phone,
-                "date_of_booking": booking.date_of_booking,
-                "status": booking.status,
-            },
-        )
-        if not booking_sent:
-            print("[Booking Notification] Email delivery failed. Booking was saved successfully.")
 
-        try:
-            sent = send_status_email(
-                booking.email,
-                {
-                    "tour_name": tour.name,
-                    "name": booking.name,
-                    "status": "Confirmed",
-                    "details": f"Booking date: {booking.date_of_booking}, tour: {tour.name}",
-                },
-            )
-            if not sent:
-                print(f"[Booking Confirmation] Failed to send confirmation email to {booking.email}")
-        except Exception as exc:
-            print(f"[Booking Confirmation] Error sending confirmation email: {exc}")
-
-        # Return booking as dict with parsed tour data
+        # Booking details are stored in the admin dashboard and visible to the super admin immediately.
         return {
             "id": booking.id,
             "tour_id": booking.tour_id,
@@ -577,34 +547,6 @@ def admin_update_booking(booking_id: int, status: str = Body(...), admin_user: U
         raise HTTPException(status_code=404, detail="Booking not found")
     booking.status = status
     db.commit()
-    tour = db.query(Tour).filter(Tour.id == booking.tour_id).first()
-    try:
-        if status.lower() == "approved":
-            sent = send_status_email(
-                booking.email,
-                {
-                    "tour_name": tour.name,
-                    "name": booking.name,
-                    "status": "Confirmed",
-                    "details": f"Booking date: {booking.date_of_booking}, tour: {tour.name}",
-                },
-            )
-            if not sent:
-                print(f"[Booking Status] Failed to send confirmation email to {booking.email}")
-        elif status.lower() == "rejected" or status.lower() == "cancelled":
-            sent = send_status_email(
-                booking.email,
-                {
-                    "tour_name": tour.name,
-                    "name": booking.name,
-                    "status": "Rejected",
-                    "details": f"Booking date: {booking.date_of_booking}, tour: {tour.name}",
-                },
-            )
-            if not sent:
-                print(f"[Booking Status] Failed to send rejection email to {booking.email}")
-    except Exception as exc:
-        print(f"[Booking Status] Error sending status email: {exc}")
     return {"message": "Booking status updated"}
 
 

@@ -40,11 +40,10 @@ function TourDetail() {
     phone: '',
     date_of_booking: ''
   })
-  const [otpSent, setOtpSent] = useState(false)
-  const [otp, setOtp] = useState('')
-  const [otpVerified, setOtpVerified] = useState(false)
-  const [otpMessage, setOtpMessage] = useState('')
-  const [otpError, setOtpError] = useState('')
+  const [password, setPassword] = useState('')
+  const [passwordVerified, setPasswordVerified] = useState(false)
+  const [passwordMessage, setPasswordMessage] = useState('')
+  const [passwordError, setPasswordError] = useState('')
 
   // const { register, handleSubmit } = useForm()
 
@@ -57,8 +56,8 @@ function TourDetail() {
     setError('')
     setMessage('')
 
-    if (!otpVerified) {
-      setError('Please verify your email with OTP before confirming the booking.')
+    if (!passwordVerified) {
+      setError('Please verify your email and password before confirming the booking.')
       return
     }
 
@@ -91,51 +90,33 @@ function TourDetail() {
   const handleChange = (e) => {
     const { name, value } = e.target
     if (name === 'email') {
-      setOtpSent(false)
-      setOtp('')
-      setOtpVerified(false)
-      setOtpMessage('')
-      setOtpError('')
+      setPassword('')
+      setPasswordVerified(false)
+      setPasswordMessage('')
+      setPasswordError('')
     }
     setFormData({ ...formData, [name]: value })
   }
 
-  const sendOtp = async () => {
+  const verifyPassword = async () => {
     setError('')
-    setOtpError('')
-    setOtpMessage('')
-    setOtpVerified(false)
+    setPasswordError('')
+    setPasswordMessage('')
+    setPasswordVerified(false)
 
-    if (!formData.email) {
-      setOtpError('Enter your email address to receive OTP.')
+    if (!formData.email || !password) {
+      setPasswordError('Enter your email and password to continue.')
       return
     }
 
     try {
-      await api.post('/api/auth/send-otp', { email: formData.email })
-      setOtpSent(true)
-      setOtpMessage('OTP sent. Check your inbox and enter the code below.')
+      const response = await api.post('/api/auth/login', { email: formData.email, password })
+      if (response.data?.access_token) {
+        setPasswordVerified(true)
+        setPasswordMessage('Credentials accepted. You can now confirm the booking.')
+      }
     } catch (err) {
-      setOtpError(err.response?.data?.detail || 'Unable to send OTP. Try again later.')
-    }
-  }
-
-  const verifyOtp = async () => {
-    setError('')
-    setOtpError('')
-    setOtpMessage('')
-
-    if (!otp) {
-      setOtpError('Enter the 6-digit OTP sent to your email.')
-      return
-    }
-
-    try {
-      await api.post('/api/auth/verify-otp', { email: formData.email, otp })
-      setOtpVerified(true)
-      setOtpMessage('Email verified successfully. You can now confirm the booking.')
-    } catch (err) {
-      setOtpError(err.response?.data?.detail || 'OTP verification failed. Check the code and try again.')
+      setPasswordError(err.response?.data?.detail || 'Authentication failed. Please try again.')
     }
   }
 
@@ -239,7 +220,7 @@ function TourDetail() {
         <aside className="space-y-6">
           <div id="booking" className="rounded-[2rem] bg-white p-6 shadow-card">
             <h2 className="text-2xl font-semibold text-slate-900">Book This Tour</h2>
-            <p className="mt-2 text-sm text-slate-600">Fill in your details below and we'll send your complete booking information to our team. We'll contact you within 24 hours to confirm.</p>
+            <p className="mt-2 text-sm text-slate-600">Fill in your details below and your booking will be saved directly for the super admin to view and manage from the dashboard.</p>
             {error && <div className="mt-4 rounded-3xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
             {message && <div className="mt-4 rounded-3xl bg-forest/10 px-4 py-3 text-sm text-forest">{message}</div>}
             <form onSubmit={onSubmit} className="mt-6 space-y-4">
@@ -260,24 +241,17 @@ function TourDetail() {
                   Email
                   <div className="flex gap-3">
                     <input type="email" name="email" value={formData.email} onChange={handleChange} className="flex-1 rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3" />
-                    <button type="button" onClick={sendOtp} className="rounded-3xl bg-sun px-4 py-3 text-sm font-semibold text-white hover:bg-orange-500">
-                      Get OTP
+                    <button type="button" onClick={verifyPassword} className="rounded-3xl bg-sun px-4 py-3 text-sm font-semibold text-white hover:bg-orange-500">
+                      Verify
                     </button>
                   </div>
                 </label>
-                {otpSent && (
-                  <label className="grid gap-2 text-sm font-medium text-slate-700">
-                    OTP Code
-                    <div className="flex gap-3">
-                      <input type="text" maxLength="6" value={otp} onChange={(e) => setOtp(e.target.value)} className="flex-1 rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3" placeholder="123456" />
-                      <button type="button" onClick={verifyOtp} className="rounded-3xl bg-forest px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-600">
-                        Verify
-                      </button>
-                    </div>
-                    {otpError && <span className="text-sm text-red-600">{otpError}</span>}
-                    {otpMessage && <span className="text-sm text-forest">{otpMessage}</span>}
-                  </label>
-                )}
+                <label className="grid gap-2 text-sm font-medium text-slate-700">
+                  Password
+                  <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3" placeholder="Your account password" />
+                  {passwordError && <span className="text-sm text-red-600">{passwordError}</span>}
+                  {passwordMessage && <span className="text-sm text-forest">{passwordMessage}</span>}
+                </label>
                 <label className="grid gap-2 text-sm font-medium text-slate-700">
                   Mobile Number
                   <input type="tel" name="phone" value={formData.phone} onChange={handleChange} className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3" />

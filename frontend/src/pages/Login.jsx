@@ -5,32 +5,25 @@ import { z } from 'zod'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
-const emailSchema = z.object({ email: z.string().email() })
-const otpSchema = z.object({ email: z.string().email(), otp: z.string().length(6) })
+const loginSchema = z.object({ email: z.string().email(), password: z.string().min(6) })
 
 function Login() {
-  const [otpSent, setOtpSent] = useState(false)
   const [serverMessage, setServerMessage] = useState('')
   const [error, setError] = useState('')
-  const { requestOtp, login } = useAuth()
+  const { login } = useAuth()
   const navigate = useNavigate()
 
-  const { register, handleSubmit, formState: { errors }, watch } = useForm({ resolver: zodResolver(otpSent ? otpSchema : emailSchema) })
+  const { register, handleSubmit, formState: { errors } } = useForm({ resolver: zodResolver(loginSchema) })
 
   const onSubmit = async (data) => {
     setError('')
     setServerMessage('')
     try {
-      if (!otpSent) {
-        await requestOtp(data.email)
-        setOtpSent(true)
-        setServerMessage('OTP request sent. Check your email and enter the code below.')
-      } else {
-        await login(data.email, data.otp)
-        navigate('/dashboard')
-      }
+      await login(data.email, data.password)
+      setServerMessage('Login successful. Redirecting to your dashboard...')
+      navigate('/dashboard')
     } catch (err) {
-      setError(err.response?.data?.detail || 'Unable to proceed. Please try again.')
+      setError(err.response?.data?.detail || 'Unable to log in. Please try again.')
     }
   }
 
@@ -39,8 +32,8 @@ function Login() {
       <div className="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-card">
         <div className="mb-8">
           <p className="text-sm uppercase tracking-[0.35em] text-slate-400">Secure Login</p>
-          <h1 className="mt-3 text-3xl font-semibold text-slate-900">Login with Email OTP</h1>
-          <p className="mt-3 text-slate-600">Enter your email to receive a one-time password. Admin login is available with admin@kaimurexplorer.com.</p>
+          <h1 className="mt-3 text-3xl font-semibold text-slate-900">Login with Email and Password</h1>
+          <p className="mt-3 text-slate-600">Use your email and password to access your account. Super admin can sign in with the fixed admin account.</p>
         </div>
         {serverMessage && <div className="mb-4 rounded-3xl border border-forest/20 bg-forest/10 px-4 py-3 text-sm text-forest">{serverMessage}</div>}
         {error && <div className="mb-4 rounded-3xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
@@ -50,15 +43,13 @@ function Login() {
             <input type="email" {...register('email')} className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900" placeholder="you@example.com" />
             {errors.email && <span className="text-sm text-red-600">{errors.email.message}</span>}
           </label>
-          {otpSent && (
-            <label className="grid gap-2 text-sm font-medium text-slate-700">
-              OTP code
-              <input type="text" maxLength="6" {...register('otp')} className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900" placeholder="123456" />
-              {errors.otp && <span className="text-sm text-red-600">{errors.otp.message}</span>}
-            </label>
-          )}
+          <label className="grid gap-2 text-sm font-medium text-slate-700">
+            Password
+            <input type="password" {...register('password')} className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900" placeholder="Enter your password" />
+            {errors.password && <span className="text-sm text-red-600">{errors.password.message}</span>}
+          </label>
           <button type="submit" className="rounded-full bg-river px-6 py-3 text-sm font-semibold text-white transition hover:bg-blue-600">
-            {otpSent ? 'Verify OTP' : 'Send OTP'}
+            Log in
           </button>
         </form>
       </div>
