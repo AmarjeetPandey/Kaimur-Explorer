@@ -143,7 +143,11 @@ class BookingOut(BaseModel):
     phone: str
     date_of_booking: str
     status: str
-    tour: TourOut
+    tour: Optional[TourOut] = None
+    tour_name: Optional[str] = None
+    tour_duration: Optional[str] = None
+    tour_price: Optional[float] = None
+    tour_short_description: Optional[str] = None
 
     class Config:
         from_attributes = True

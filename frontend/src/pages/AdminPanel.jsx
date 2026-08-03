@@ -215,7 +215,11 @@ function AdminPanel() {
                 {bookings.map((booking) => (
                   <tr key={booking.id}>
                     <td className="px-6 py-4">{booking.id}</td>
-                    <td className="px-6 py-4">{booking.tour?.name || 'Tour'}</td>
+                    <td className="px-6 py-4">
+                      <div className="font-semibold text-slate-900">{booking.tour_name || booking.tour?.name || 'Tour'}</div>
+                      <div className="mt-1 text-xs text-slate-500">{booking.tour_short_description || booking.tour?.short_description || 'No description'}</div>
+                      <div className="mt-1 text-xs text-slate-500">{booking.tour_duration || booking.tour?.duration ? `${booking.tour_duration || booking.tour?.duration}` : ''}</div>
+                    </td>
                     <td className="px-6 py-4">{booking.name}</td>
                     <td className="px-6 py-4">{booking.email}</td>
                     <td className="px-6 py-4">{booking.phone}</td>

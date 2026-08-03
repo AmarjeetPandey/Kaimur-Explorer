@@ -47,6 +47,22 @@ class Booking(Base):
     user = relationship("User", back_populates="bookings")
     tour = relationship("Tour", back_populates="bookings")
 
+    @property
+    def tour_name(self):
+        return self.tour.name if self.tour else None
+
+    @property
+    def tour_duration(self):
+        return self.tour.duration if self.tour else None
+
+    @property
+    def tour_price(self):
+        return self.tour.price if self.tour else None
+
+    @property
+    def tour_short_description(self):
+        return self.tour.short_description if self.tour else None
+
 class OTPToken(Base):
     __tablename__ = "otp_tokens"
     id = Column(Integer, primary_key=True, index=True)
