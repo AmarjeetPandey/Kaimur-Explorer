@@ -39,9 +39,9 @@ function App() {
   }, [darkMode])
 
   return (
-    <div className={`min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100`}>
+    <div className={`min-h-screen overflow-x-hidden bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100`}>
       <Navbar darkMode={darkMode} onToggleDarkMode={() => setDarkMode((prev) => !prev)} />
-      <main className="pt-24">
+      <main className="pt-24 px-2 sm:px-4 lg:px-6">
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/tours" element={<Tours />} />

@@ -12,17 +12,17 @@ function Home() {
   }, [])
 
   return (
-    <section className="mx-auto max-w-7xl px-4 pb-20 pt-8 sm:px-6">
-      <div className="grid gap-12 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
-        <motion.div initial={{ opacity: 0, x: -40 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.8 }} className="rounded-[2.5rem] bg-hero-gradient p-10 text-white shadow-card">
-          <p className="mb-4 uppercase tracking-[0.4em] text-sm text-white/80">Discover Kaimur</p>
-          <h1 className="text-4xl font-semibold sm:text-5xl">Explore hidden hills, waterfalls, temples, and rivers.</h1>
-          <p className="mt-6 max-w-xl text-lg leading-8 text-white/90">Kaimur Explorer helps you plan immersive tours across Bihar's nature sanctuary, heritage forts, pilgrimage sites, and riverfront landscapes.</p>
-          <div className="mt-10 flex flex-col gap-4 sm:flex-row">
-            <Link to="/tours" className="rounded-full bg-white px-8 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-100">
+    <section className="mx-auto max-w-7xl px-2 pb-20 pt-4 sm:px-6 sm:pt-8">
+      <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
+        <motion.div initial={{ opacity: 0, x: -40 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.8 }} className="rounded-[2rem] bg-hero-gradient p-6 text-white shadow-card sm:rounded-[2.5rem] sm:p-10">
+          <p className="mb-4 text-sm uppercase tracking-[0.4em] text-white/80">Discover Kaimur</p>
+          <h1 className="text-3xl font-semibold sm:text-4xl lg:text-5xl">Explore hidden hills, waterfalls, temples, and rivers.</h1>
+          <p className="mt-5 max-w-xl text-base leading-7 text-white/90 sm:mt-6 sm:text-lg sm:leading-8">Kaimur Explorer helps you plan immersive tours across Bihar's nature sanctuary, heritage forts, pilgrimage sites, and riverfront landscapes.</p>
+          <div className="mt-8 flex flex-col gap-3 sm:mt-10 sm:flex-row">
+            <Link to="/tours" className="rounded-full bg-white px-6 py-3 text-center text-sm font-semibold text-slate-900 transition hover:bg-slate-100 sm:px-8">
               Browse Tours
             </Link>
-            <Link to="/tours" className="rounded-full border border-white/40 px-8 py-3 text-sm text-white transition hover:bg-white/10">
+            <Link to="/tours" className="rounded-full border border-white/40 px-6 py-3 text-center text-sm text-white transition hover:bg-white/10 sm:px-8">
               Book a Tour
             </Link>
           </div>
