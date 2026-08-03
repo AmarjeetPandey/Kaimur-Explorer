@@ -41,9 +41,10 @@ function TourDetail() {
     date_of_booking: ''
   })
   const [password, setPassword] = useState('')
-  const [passwordVerified, setPasswordVerified] = useState(false)
-  const [passwordMessage, setPasswordMessage] = useState('')
-  const [passwordError, setPasswordError] = useState('')
+  const [accountMode, setAccountMode] = useState('signup')
+  const [accountVerified, setAccountVerified] = useState(false)
+  const [accountMessage, setAccountMessage] = useState('')
+  const [accountError, setAccountError] = useState('')
 
   // const { register, handleSubmit } = useForm()
 
@@ -56,8 +57,8 @@ function TourDetail() {
     setError('')
     setMessage('')
 
-    if (!passwordVerified) {
-      setError('Please verify your email and password before confirming the booking.')
+    if (!accountVerified) {
+      setError('Please create or verify your account before confirming the booking.')
       return
     }
 
@@ -91,32 +92,42 @@ function TourDetail() {
     const { name, value } = e.target
     if (name === 'email') {
       setPassword('')
-      setPasswordVerified(false)
-      setPasswordMessage('')
-      setPasswordError('')
+      setAccountVerified(false)
+      setAccountMessage('')
+      setAccountError('')
     }
     setFormData({ ...formData, [name]: value })
   }
 
-  const verifyPassword = async () => {
+  const verifyAccount = async () => {
     setError('')
-    setPasswordError('')
-    setPasswordMessage('')
-    setPasswordVerified(false)
+    setAccountError('')
+    setAccountMessage('')
+    setAccountVerified(false)
 
     if (!formData.email || !password) {
-      setPasswordError('Enter your email and password to continue.')
+      setAccountError('Enter your email and password to continue.')
       return
     }
 
     try {
-      const response = await api.post('/api/auth/login', { email: formData.email, password })
+      const endpoint = accountMode === 'signup' ? '/api/auth/signup' : '/api/auth/login'
+      const response = await api.post(endpoint, {
+        email: formData.email,
+        password,
+        name: formData.name || undefined,
+      })
       if (response.data?.access_token) {
-        setPasswordVerified(true)
-        setPasswordMessage('Credentials accepted. You can now confirm the booking.')
+        setAccountVerified(true)
+        setAccountMessage(accountMode === 'signup' ? 'Account created and email verified successfully. You can now confirm the booking.' : 'Account verified successfully. You can now confirm the booking.')
       }
     } catch (err) {
-      setPasswordError(err.response?.data?.detail || 'Authentication failed. Please try again.')
+      const detail = err.response?.data?.detail || 'Authentication failed. Please try again.'
+      if (accountMode === 'signup' && detail.includes('already exists')) {
+        setAccountError('This email already exists. Switch to Log in and verify your account.')
+      } else {
+        setAccountError(detail)
+      }
     }
   }
 
@@ -220,7 +231,7 @@ function TourDetail() {
         <aside className="space-y-6">
           <div id="booking" className="rounded-[2rem] bg-white p-6 shadow-card">
             <h2 className="text-2xl font-semibold text-slate-900">Book This Tour</h2>
-            <p className="mt-2 text-sm text-slate-600">Fill in your details below and your booking will be saved directly for the super admin to view and manage from the dashboard.</p>
+            <p className="mt-2 text-sm text-slate-600">New users can create an account here first. After signup or login, the email is verified and the booking is saved for the super admin to view and manage.</p>
             {error && <div className="mt-4 rounded-3xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
             {message && <div className="mt-4 rounded-3xl bg-forest/10 px-4 py-3 text-sm text-forest">{message}</div>}
             <form onSubmit={onSubmit} className="mt-6 space-y-4">
@@ -237,20 +248,28 @@ function TourDetail() {
                   Age
                   <input type="number" name="age" value={formData.age} onChange={handleChange} className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3" />
                 </label>
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => { setAccountMode('signup'); setAccountError(''); setAccountMessage(''); setAccountVerified(false) }} className={`rounded-full px-4 py-2 text-sm font-semibold ${accountMode === 'signup' ? 'bg-sun text-white' : 'bg-slate-100 text-slate-700'}`}>
+                    Sign up
+                  </button>
+                  <button type="button" onClick={() => { setAccountMode('login'); setAccountError(''); setAccountMessage(''); setAccountVerified(false) }} className={`rounded-full px-4 py-2 text-sm font-semibold ${accountMode === 'login' ? 'bg-forest text-white' : 'bg-slate-100 text-slate-700'}`}>
+                    Log in
+                  </button>
+                </div>
                 <label className="grid gap-2 text-sm font-medium text-slate-700">
                   Email
                   <div className="flex gap-3">
                     <input type="email" name="email" value={formData.email} onChange={handleChange} className="flex-1 rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3" />
-                    <button type="button" onClick={verifyPassword} className="rounded-3xl bg-sun px-4 py-3 text-sm font-semibold text-white hover:bg-orange-500">
-                      Verify
+                    <button type="button" onClick={verifyAccount} className="rounded-3xl bg-sun px-4 py-3 text-sm font-semibold text-white hover:bg-orange-500">
+                      {accountMode === 'signup' ? 'Create Account' : 'Log In'}
                     </button>
                   </div>
                 </label>
                 <label className="grid gap-2 text-sm font-medium text-slate-700">
                   Password
                   <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3" placeholder="Your account password" />
-                  {passwordError && <span className="text-sm text-red-600">{passwordError}</span>}
-                  {passwordMessage && <span className="text-sm text-forest">{passwordMessage}</span>}
+                  {accountError && <span className="text-sm text-red-600">{accountError}</span>}
+                  {accountMessage && <span className="text-sm text-forest">{accountMessage}</span>}
                 </label>
                 <label className="grid gap-2 text-sm font-medium text-slate-700">
                   Mobile Number
