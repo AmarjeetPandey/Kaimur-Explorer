@@ -195,33 +195,43 @@ function AdminPanel() {
       )}
       {activeTab === 'Bookings' && (
         <div className="overflow-hidden rounded-[2rem] bg-white shadow-card">
-          <table className="min-w-full divide-y divide-slate-200 text-left text-sm text-slate-700">
-            <thead className="bg-slate-50 text-slate-500">
-              <tr>
-                <th className="px-6 py-4">ID</th>
-                <th className="px-6 py-4">Tour</th>
-                <th className="px-6 py-4">Guest</th>
-                <th className="px-6 py-4">Dates</th>
-                <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200 bg-white">
-              {bookings.map((booking) => (
-                <tr key={booking.id}>
-                  <td className="px-6 py-4">{booking.id}</td>
-                  <td className="px-6 py-4">{booking.tour.name}</td>
-                  <td className="px-6 py-4">{booking.name}</td>
-                  <td className="px-6 py-4">{booking.start_date} → {booking.end_date}</td>
-                  <td className="px-6 py-4">{booking.status}</td>
-                  <td className="px-6 py-4 space-x-2">
-                    <button onClick={() => handleApprove(booking.id)} className="rounded-full bg-forest px-4 py-2 text-xs font-semibold text-white">Approve</button>
-                    <button onClick={() => handleReject(booking.id)} className="rounded-full bg-red-500 px-4 py-2 text-xs font-semibold text-white">Reject</button>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-slate-200 text-left text-sm text-slate-700">
+              <thead className="bg-slate-50 text-slate-500">
+                <tr>
+                  <th className="px-6 py-4">ID</th>
+                  <th className="px-6 py-4">Tour</th>
+                  <th className="px-6 py-4">Guest</th>
+                  <th className="px-6 py-4">Email</th>
+                  <th className="px-6 py-4">Phone</th>
+                  <th className="px-6 py-4">Location</th>
+                  <th className="px-6 py-4">Age</th>
+                  <th className="px-6 py-4">Booking Date</th>
+                  <th className="px-6 py-4">Status</th>
+                  <th className="px-6 py-4">Action</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-200 bg-white">
+                {bookings.map((booking) => (
+                  <tr key={booking.id}>
+                    <td className="px-6 py-4">{booking.id}</td>
+                    <td className="px-6 py-4">{booking.tour?.name || 'Tour'}</td>
+                    <td className="px-6 py-4">{booking.name}</td>
+                    <td className="px-6 py-4">{booking.email}</td>
+                    <td className="px-6 py-4">{booking.phone}</td>
+                    <td className="px-6 py-4">{booking.location}</td>
+                    <td className="px-6 py-4">{booking.age}</td>
+                    <td className="px-6 py-4">{booking.date_of_booking}</td>
+                    <td className="px-6 py-4">{booking.status}</td>
+                    <td className="px-6 py-4 space-x-2">
+                      <button onClick={() => handleApprove(booking.id)} className="rounded-full bg-forest px-4 py-2 text-xs font-semibold text-white">Approve</button>
+                      <button onClick={() => handleReject(booking.id)} className="rounded-full bg-red-500 px-4 py-2 text-xs font-semibold text-white">Reject</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
       {activeTab === 'Tours' && (
