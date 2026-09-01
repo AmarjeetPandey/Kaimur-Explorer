@@ -194,6 +194,16 @@ def reset_tour_sequence(db: Session):
         pass
 
 
+def cleanup_invalid_bookings(db: Session):
+    try:
+        db.query(Booking).filter(Booking.tour_id.is_(None)).delete(synchronize_session=False)
+        db.query(Booking).filter(Booking.user_id.is_(None)).delete(synchronize_session=False)
+        db.commit()
+    except Exception:
+        db.rollback()
+        pass
+
+
 def cleanup_demo_tours(db: Session):
     legacy_demo_names = {
         "Maa Mundeshwari Temple",
@@ -211,6 +221,9 @@ def cleanup_demo_tours(db: Session):
     }
     demo_tours = db.query(Tour).filter(Tour.name.in_(sorted(legacy_demo_names))).all()
     if demo_tours:
+        demo_ids = [tour.id for tour in demo_tours if tour.id is not None]
+        if demo_ids:
+            db.query(Booking).filter(Booking.tour_id.in_(demo_ids)).delete(synchronize_session=False)
         for tour in demo_tours:
             db.delete(tour)
         db.commit()
@@ -249,6 +262,7 @@ def startup_event():
             admin.is_active = True
             db.commit()
 
+        cleanup_invalid_bookings(db)
         cleanup_demo_tours(db)
         drop_otp_tokens_table(db)
     finally:
