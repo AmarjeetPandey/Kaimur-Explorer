@@ -18,7 +18,7 @@ import shutil
 import os
 
 from database import Base, engine, SessionLocal, get_db
-from models import User, Tour, Booking, OTPToken
+from models import User, Tour, Booking
 
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
@@ -217,6 +217,14 @@ def cleanup_demo_tours(db: Session):
         reset_tour_sequence(db)
 
 
+def drop_otp_tokens_table(db: Session):
+    try:
+        db.execute(text("DROP TABLE IF EXISTS otp_tokens"))
+        db.commit()
+    except Exception:
+        pass
+
+
 @app.on_event("startup")
 def startup_event():
     Base.metadata.create_all(bind=engine)
@@ -242,6 +250,7 @@ def startup_event():
             db.commit()
 
         cleanup_demo_tours(db)
+        drop_otp_tokens_table(db)
     finally:
         db.close()
 
