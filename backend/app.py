@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, EmailStr, Field, validator
-from sqlalchemy import text
+from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session
 from werkzeug.security import generate_password_hash, check_password_hash
 import jwt
@@ -100,6 +100,7 @@ class TourBase(BaseModel):
     price: float
     duration: str
     image_urls: List[str] = []
+    online_url: List[str] = []
     video_urls: Optional[List[str]] = []
     front_media_url: Optional[str] = None
 
@@ -155,12 +156,13 @@ class BookingOut(BaseModel):
         from_attributes = True
 
 def ensure_front_media_column():
-    if engine.dialect.name == 'sqlite':
-        with engine.connect() as connection:
-            result = connection.execute(text("PRAGMA table_info('tours')"))
-            columns = [row[1] for row in result]
+    columns = {column['name'] for column in inspect(engine).get_columns('tours')}
+    if 'front_media_url' not in columns or 'online_url' not in columns:
+        with engine.begin() as connection:
             if 'front_media_url' not in columns:
                 connection.execute(text('ALTER TABLE tours ADD COLUMN front_media_url TEXT'))
+            if 'online_url' not in columns:
+                connection.execute(text('ALTER TABLE tours ADD COLUMN online_url TEXT'))
 
 
 def parse_media_list(value):
@@ -356,6 +358,7 @@ def get_tours(skip: int = 0, limit: int = 50, db: Session = Depends(get_db)):
     tours = db.query(Tour).order_by(Tour.id.asc()).offset(skip).limit(limit).all()
     for tour in tours:
         image_urls = parse_media_list(tour.image_urls)
+        tour.online_url = parse_media_list(tour.online_url)
         video_urls = parse_media_list(tour.video_urls)
         front_media_url = tour.front_media_url if tour.front_media_url in (image_urls + video_urls) else (image_urls[0] if image_urls else (video_urls[0] if video_urls else None))
         tour.image_urls = image_urls
@@ -370,6 +373,7 @@ def get_tour(tour_id: int = Path(..., gt=0), db: Session = Depends(get_db)):
     if not tour:
         raise HTTPException(status_code=404, detail="Tour not found")
     image_urls = parse_media_list(tour.image_urls)
+    tour.online_url = parse_media_list(tour.online_url)
     video_urls = parse_media_list(tour.video_urls)
     front_media_url = tour.front_media_url if tour.front_media_url in (image_urls + video_urls) else (image_urls[0] if image_urls else (video_urls[0] if video_urls else None))
     tour.image_urls = image_urls
@@ -435,6 +439,7 @@ def create_booking(payload: BookingCreate, db: Session = Depends(get_db)):
                 "price": tour.price,
                 "duration": tour.duration,
                 "image_urls": [url for url in json.loads(tour.image_urls) if url],
+                "online_url": parse_media_list(tour.online_url),
                 "video_urls": [url for url in json.loads(tour.video_urls) if url] if tour.video_urls else [],
             }
         }
@@ -454,6 +459,7 @@ def list_bookings(current_user: User = Depends(get_current_user), db: Session = 
         if not booking.tour:
             continue
         image_urls = parse_media_list(booking.tour.image_urls)
+        booking.tour.online_url = parse_media_list(booking.tour.online_url)
         video_urls = parse_media_list(booking.tour.video_urls)
         booking.tour.image_urls = image_urls
         booking.tour.video_urls = video_urls
@@ -470,6 +476,7 @@ def admin_list_bookings(admin_user: User = Depends(get_admin_user), db: Session 
             continue
         booking.tour = tour
         image_urls = parse_media_list(tour.image_urls)
+        tour.online_url = parse_media_list(tour.online_url)
         video_urls = parse_media_list(tour.video_urls)
         tour.image_urls = image_urls
         tour.video_urls = video_urls
@@ -512,7 +519,8 @@ def admin_delete_user(user_id: int, admin_user: User = Depends(get_admin_user), 
 
 @app.post("/api/admin/tours", response_model=TourOut)
 def admin_create_tour(payload: TourBase, admin_user: User = Depends(get_admin_user), db: Session = Depends(get_db)):
-    image_urls = [url for url in payload.image_urls if url]
+    online_urls = list(dict.fromkeys(url.strip() for url in payload.online_url if url and url.strip()))
+    image_urls = list(dict.fromkeys([url.strip() for url in payload.image_urls if url and url.strip()] + online_urls))
     video_urls = [url for url in payload.video_urls if url] if payload.video_urls else []
     front_media_url = payload.front_media_url if payload.front_media_url in image_urls + video_urls else None
     if not front_media_url:
@@ -526,6 +534,7 @@ def admin_create_tour(payload: TourBase, admin_user: User = Depends(get_admin_us
         price=payload.price,
         duration=payload.duration,
         image_urls=json.dumps(image_urls),
+        online_url=json.dumps(online_urls) if online_urls else None,
         video_urls=json.dumps(video_urls) if video_urls else None,
         front_media_url=front_media_url,
         media_items=json.dumps([
@@ -538,6 +547,7 @@ def admin_create_tour(payload: TourBase, admin_user: User = Depends(get_admin_us
     db.commit()
     db.refresh(tour)
     tour.image_urls = image_urls
+    tour.online_url = online_urls
     tour.video_urls = video_urls
     tour.front_media_url = front_media_url
     return tour
@@ -548,7 +558,8 @@ def admin_update_tour(tour_id: int, payload: TourBase, admin_user: User = Depend
     tour = db.query(Tour).filter(Tour.id == tour_id).first()
     if not tour:
         raise HTTPException(status_code=404, detail="Tour not found")
-    image_urls = [url for url in payload.image_urls if url]
+    online_urls = list(dict.fromkeys(url.strip() for url in payload.online_url if url and url.strip()))
+    image_urls = list(dict.fromkeys([url.strip() for url in payload.image_urls if url and url.strip()] + online_urls))
     video_urls = [url for url in payload.video_urls if url] if payload.video_urls else []
     front_media_url = payload.front_media_url if payload.front_media_url in image_urls + video_urls else None
     if not front_media_url:
@@ -561,6 +572,7 @@ def admin_update_tour(tour_id: int, payload: TourBase, admin_user: User = Depend
     tour.price = payload.price
     tour.duration = payload.duration
     tour.image_urls = json.dumps(image_urls)
+    tour.online_url = json.dumps(online_urls) if online_urls else None
     tour.video_urls = json.dumps(video_urls) if video_urls else None
     tour.front_media_url = front_media_url
     tour.media_items = json.dumps([
@@ -570,6 +582,7 @@ def admin_update_tour(tour_id: int, payload: TourBase, admin_user: User = Depend
     ])
     db.commit()
     tour.image_urls = image_urls
+    tour.online_url = online_urls
     tour.video_urls = video_urls
     tour.front_media_url = front_media_url
     return tour

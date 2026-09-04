@@ -11,6 +11,7 @@ const defaultTourForm = {
   price: 0,
   duration: '1 day',
   image_urls: [],
+  online_url: [],
   video_urls: [],
   front_media_url: null,
 }
@@ -24,6 +25,7 @@ function AdminPanel() {
   const [tourForm, setTourForm] = useState(defaultTourForm)
   const [editingTourId, setEditingTourId] = useState(null)
   const [message, setMessage] = useState('')
+  const [onlineUrlInput, setOnlineUrlInput] = useState('')
 
   const normalizeMediaUrl = (url) => {
     if (!url) return url
@@ -78,6 +80,7 @@ function AdminPanel() {
       price: tour.price || 0,
       duration: tour.duration || '1 day',
       image_urls: tour.image_urls || [],
+      online_url: tour.online_url || [],
       video_urls: tour.video_urls || [],
       front_media_url: tour.front_media_url || null,
     })
@@ -87,6 +90,7 @@ function AdminPanel() {
   const handleCancelEdit = () => {
     setEditingTourId(null)
     setTourForm(defaultTourForm)
+    setOnlineUrlInput('')
     setMessage('')
   }
 
@@ -95,6 +99,7 @@ function AdminPanel() {
     const payload = {
       ...tourForm,
       image_urls: tourForm.image_urls || [],
+      online_url: tourForm.online_url || [],
       video_urls: tourForm.video_urls || [],
       front_media_url: tourForm.front_media_url || null,
     }
@@ -108,6 +113,7 @@ function AdminPanel() {
       }
       setEditingTourId(null)
       setTourForm(defaultTourForm)
+      setOnlineUrlInput('')
       const res = await api.get('/api/tours')
       setTours(res.data)
     } catch (err) {
@@ -120,6 +126,20 @@ function AdminPanel() {
       ...prev,
       front_media_url: url,
     }))
+  }
+
+  const handleAddOnlineUrls = () => {
+    const urls = onlineUrlInput
+      .split(/[\n,]+/)
+      .map((url) => url.trim())
+      .filter((url) => /^https?:\/\//i.test(url))
+    if (!urls.length) return
+    setTourForm((prev) => {
+      const online_url = [...new Set([...(prev.online_url || []), ...urls])]
+      return { ...prev, online_url, image_urls: [...new Set([...(prev.image_urls || []), ...urls])] }
+    })
+    setOnlineUrlInput('')
+    setMessage(`${urls.length} online image URL${urls.length === 1 ? '' : 's'} added.`)
   }
 
   useEffect(() => {
@@ -255,6 +275,11 @@ function AdminPanel() {
             <label className="grid gap-2 text-sm font-medium text-slate-700">
               Upload Photos & Videos
               <input type="file" accept="image/*,video/*" multiple onChange={handleMediaUpload} className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3" />
+            </label>
+            <label className="grid gap-2 text-sm font-medium text-slate-700">
+              Add Online Image URLs
+              <textarea value={onlineUrlInput} onChange={(e) => setOnlineUrlInput(e.target.value)} placeholder="Paste one image URL per line" rows="3" className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3" />
+              <button type="button" onClick={handleAddOnlineUrls} className="w-fit rounded-full bg-forest px-4 py-2 text-xs font-semibold text-white hover:bg-green-800">Add URLs</button>
             </label>
             <div className="text-sm text-slate-600">
               <p>Uploaded images: {(tourForm.image_urls || []).length}</p>

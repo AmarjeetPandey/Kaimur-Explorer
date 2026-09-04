@@ -25,6 +25,7 @@ class Tour(Base):
     price = Column(Float, nullable=False)
     duration = Column(String(120), nullable=False, default="1 day")
     image_urls = Column(Text, nullable=False)
+    online_url = Column(Text, nullable=True)
     video_urls = Column(Text, nullable=True)
     front_media_url = Column(Text, nullable=True)
     media_items = Column(Text, nullable=True)
