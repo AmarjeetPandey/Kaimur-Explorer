@@ -206,32 +206,6 @@ def cleanup_invalid_bookings(db: Session):
         pass
 
 
-def cleanup_demo_tours(db: Session):
-    legacy_demo_names = {
-        "Maa Mundeshwari Temple",
-        "Kaimur Wildlife Sanctuary",
-        "Karkat Waterfall",
-        "Telhar Kund Waterfall",
-        "Rohtasgarh Fort",
-        "Durgawati Fort",
-        "Sanjay Jalprapat",
-        "Ramgarh Vishdhari Sanctuary",
-        "Sidhanath Temple",
-        "Baidyanath Temple",
-        "Karmanasa River",
-        "Chorghatia",
-    }
-    demo_tours = db.query(Tour).filter(Tour.name.in_(sorted(legacy_demo_names))).all()
-    if demo_tours:
-        demo_ids = [tour.id for tour in demo_tours if tour.id is not None]
-        if demo_ids:
-            db.query(Booking).filter(Booking.tour_id.in_(demo_ids)).delete(synchronize_session=False)
-        for tour in demo_tours:
-            db.delete(tour)
-        db.commit()
-        reset_tour_sequence(db)
-
-
 def drop_otp_tokens_table(db: Session):
     try:
         db.execute(text("DROP TABLE IF EXISTS otp_tokens"))
@@ -265,7 +239,6 @@ def startup_event():
             db.commit()
 
         cleanup_invalid_bookings(db)
-        cleanup_demo_tours(db)
         drop_otp_tokens_table(db)
     finally:
         db.close()
